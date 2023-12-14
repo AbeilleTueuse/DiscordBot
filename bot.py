@@ -6,7 +6,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import asyncio
 
-from detect_boss import BossDetection
+from event.game_event import GameEvent
 from sound.musics import Musics
 
 load_dotenv()
@@ -21,7 +21,7 @@ class MyBot(commands.Bot):
         self.guild = None
         self.is_running = False
         self.voice_channel = None
-        self.boss_detection = BossDetection()
+        self.game_event = GameEvent()
         self.musics = Musics()
 
     async def on_ready(self):
@@ -34,19 +34,11 @@ class MyBot(commands.Bot):
         # else:
         #     print("Le salon général n'a pas été trouvé.")
 
-    async def detect_boss(self):
-        if self.boss_detection.detect_boss_bar():
-            await bot.play_music(self.musics.random_choice())
-            boss_is_alive = True
-            while boss_is_alive:
-                percentage = self.boss_detection.calc_boss_hp_percentage()
-                if percentage is None or not percentage:
-                    boss_is_alive = False
+    async def detect_game_event(self):
+        screen = self.game_event.get_screen()
 
-                await asyncio.sleep(0.1)
-
+        if self.game_event.boss_detection.play_music(screen):
             await bot.play_music(self.musics.random_choice())
-            self.boss_detection.reset()
 
     async def play_music(self, audio_path: str):
         if self.voice_channel is None:
@@ -57,12 +49,13 @@ class MyBot(commands.Bot):
         
         if len(self.voice_channel.channel.members) == 1:
             return
-        
-        self.voice_channel.play(
-            discord.FFmpegPCMAudio(
-                executable=self.FFMPEG_EXECUTABLE, source=audio_path
-            ),
-        )
+
+        print("Playing musics...")        
+        # self.voice_channel.play(
+        #     discord.FFmpegPCMAudio(
+        #         executable=self.FFMPEG_EXECUTABLE, source=audio_path
+        #     ),
+        # )
 
     async def connect_to_voice_channel(
         self, voice_channel: discord.channel.VoiceChannel
@@ -95,7 +88,7 @@ async def connect_to_voice_channel(ctx: commands.context.Context):
         await bot.play_music(bot.musics.random_choice())
 
         while bot.is_running:
-            await bot.detect_boss()
+            await bot.detect_game_event()
             await asyncio.sleep(1)
 
 
