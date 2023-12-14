@@ -15,3 +15,7 @@ def text_in_image(image):
     text = pytesseract.image_to_string(image, lang="fra")
 
     return text
+
+img = cv2.imread(r"reference\test.png")
+text = text_in_image(img)
+print(text)
