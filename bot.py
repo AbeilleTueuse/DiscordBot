@@ -38,19 +38,31 @@ class MyBot(commands.Bot):
         screen = self.game_event.get_screen()
 
         if self.game_event.boss_detection.play_music(screen):
-            await bot.play_music(self.musics.random_choice())
+            await bot.play_music()
 
         event = self.game_event.read_message.image_to_game_event(screen)
 
         if event is not None:
             if event == "player_death":
-                await bot.play_music(self.musics.random_choice())
-            elif event == "player_invocation":
-                await bot.play_music(self.musics.random_choice())
-            elif event == "fire_alight":
-                await bot.play_music(self.musics["lotr"])
+                await bot.play_music("il_est_decede")
 
-    async def play_music(self, audio_path: str):
+            elif event == "etchebest_invocation":
+                await bot.play_music("etchebest")
+
+            elif event == "player_invocation":
+                await bot.play_music()
+
+            elif event == "fire_alight":
+                await bot.play_music("lotr_one_ring")
+
+            elif event == "boss_begin":
+                self.game_event.boss_detection.boss_is_alive = True
+                await bot.play_music()
+
+            else:
+                print(f"Event {event} isn't added.")
+
+    async def play_music(self, music_name: str = None):
         if self.voice_channel is None:
             return
         
@@ -59,6 +71,11 @@ class MyBot(commands.Bot):
         
         if self.voice_channel.is_playing():
             return
+        
+        if music_name is None:
+            audio_path = self.musics.random_choice()
+        else:
+            audio_path = self.musics[music_name]
 
         self.voice_channel.play(
             discord.FFmpegPCMAudio(
@@ -94,7 +111,7 @@ async def connect_to_voice_channel(ctx: commands.context.Context):
             return
 
         await bot.connect_to_voice_channel(author.voice.channel)
-        await bot.play_music(bot.musics.random_choice())
+        await bot.play_music()
 
         while bot.is_running:
             await bot.detect_game_event()
@@ -111,13 +128,13 @@ async def join_voice_channel(ctx: commands.context.Context):
         return
 
     await bot.connect_to_voice_channel(author.voice.channel)
-    await bot.play_music(bot.musics.random_choice())
+    await bot.play_music()
 
 
 @bot.command(name="stop")
 async def disconnect_to_voice_channel(ctx):
     bot.is_running = False
-    await bot.play_music(bot.musics.random_choice())
+    await bot.play_music()
     await bot.disconnect_to_voice_channel()
 
 
@@ -129,7 +146,7 @@ async def random_sound(ctx: commands.context.Context):
         return
 
     await bot.connect_to_voice_channel(author.voice.channel)
-    await bot.play_music(bot.musics.random_choice())
+    await bot.play_music()
 
 
 @bot.command(name="add")
@@ -166,14 +183,14 @@ async def on_voice_state_update(
     if before.channel is None and after.channel is not None:
         await bot.connect_to_voice_channel(after.channel)
         if after.channel.id == bot.voice_channel.channel.id:
-            await bot.play_music(bot.musics.random_choice())
+            await bot.play_music()
     elif (
         before.channel is not None
         and after.channel is None
         and bot.voice_channel is not None
     ):
         if before.channel.id == bot.voice_channel.channel.id:
-            await bot.play_music(bot.musics.random_choice())
+            await bot.play_music()
 
 
 bot.run(TOKEN)
