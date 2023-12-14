@@ -2,7 +2,7 @@
 import os
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import asyncio
 
@@ -40,22 +40,31 @@ class MyBot(commands.Bot):
         if self.game_event.boss_detection.play_music(screen):
             await bot.play_music(self.musics.random_choice())
 
+        event = self.game_event.read_message.image_to_game_event(screen)
+
+        if event is not None:
+            if event == "player_death":
+                await bot.play_music(self.musics.random_choice())
+            elif event == "player_invocation":
+                await bot.play_music(self.musics.random_choice())
+            elif event == "fire_alight":
+                await bot.play_music(self.musics["lotr"])
+
     async def play_music(self, audio_path: str):
         if self.voice_channel is None:
-            return
-
-        if self.voice_channel.is_playing():
             return
         
         if len(self.voice_channel.channel.members) == 1:
             return
+        
+        if self.voice_channel.is_playing():
+            return
 
-        print("Playing musics...")        
-        # self.voice_channel.play(
-        #     discord.FFmpegPCMAudio(
-        #         executable=self.FFMPEG_EXECUTABLE, source=audio_path
-        #     ),
-        # )
+        self.voice_channel.play(
+            discord.FFmpegPCMAudio(
+                executable=self.FFMPEG_EXECUTABLE, source=audio_path
+            ),
+        )
 
     async def connect_to_voice_channel(
         self, voice_channel: discord.channel.VoiceChannel
@@ -121,6 +130,28 @@ async def random_sound(ctx: commands.context.Context):
 
     await bot.connect_to_voice_channel(author.voice.channel)
     await bot.play_music(bot.musics.random_choice())
+
+
+@bot.command(name="add")
+async def add_sound(ctx: commands.context.Context):
+    if len(ctx.message.attachments) == 0:
+        await ctx.send("Faut mettre le fichier avec la commande connard")
+        return
+    
+    attachment = ctx.message.attachments[0]
+    filename = attachment.filename
+
+    if filename.endswith(bot.musics.ALLOWED_EXTENSION):
+        if filename.split(".")[0] in bot.musics:
+            await ctx.send(f"Le fichier {filename} est déjà présent.")
+
+        else:
+            await attachment.save(os.path.join(bot.musics.SOUND_PATH, filename))
+            bot.musics.add(filename)
+            await ctx.send(f"Le fichier {filename} a été ajouté à la liste des sons.")
+            
+    else:
+        await ctx.send(f"Seules les extensions {bot.musics.ALLOWED_EXTENSION} sont autorisées débile")
 
 
 @bot.event

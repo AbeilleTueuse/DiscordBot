@@ -2,12 +2,17 @@ import numpy as np
 
 from PIL import ImageGrab
 
+from event.detect_boss import BossDetection
+from event.read_message import ReadMessage
+
 
 class GameEvent:
     SCREEN_WIDTH, SCREEN_HEIGHT = ImageGrab.grab().size
 
     def __init__(self):
         self.bbox = self._calc_bbox()
+        self.boss_detection = BossDetection()
+        self.read_message = ReadMessage()
 
     def _calc_bbox(self):
         return (
@@ -20,8 +25,3 @@ class GameEvent:
     def get_screen(self):
         image = ImageGrab.grab(bbox=self.bbox)
         return np.array(image)
-
-
-if __name__ == "__main__":
-    game_event = GameEvent()
-    print(game_event.get_screen())
