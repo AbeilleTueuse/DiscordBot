@@ -43,13 +43,20 @@ class MyBot(commands.Bot):
         event = self.game_event.read_message.image_to_game_event(screen)
 
         if event is not None:
-            if event == "player_death":
+            if (
+                (event == "abeille_death")
+                or (event == "pierrick_death")
+                or (event == "etchebest_death")
+                or (event == "player_death")
+            ):
                 await bot.play_music("il_est_decede")
 
-            elif event == "etchebest_invocation":
-                await bot.play_music("etchebest")
-
-            elif event == "player_invocation":
+            elif (
+                (event == "abeille_invocation")
+                or (event == "pierrick_invocation")
+                or (event == "etchebest_invocation")
+                or (event == "player_invocation")
+            ):
                 await bot.play_music()
 
             elif event == "fire_alight":
@@ -62,20 +69,17 @@ class MyBot(commands.Bot):
             else:
                 print(f"Event {event} isn't added.")
 
-    async def play_music(self, music_name: str = None):
+    async def play_music(self, audio_name: str = None):
         if self.voice_channel is None:
             return
-        
+
         if len(self.voice_channel.channel.members) == 1:
             return
-        
+
         if self.voice_channel.is_playing():
             return
-        
-        if music_name is None:
-            audio_path = self.musics.random_choice()
-        else:
-            audio_path = self.musics[music_name]
+
+        audio_path = self.musics.path(audio_name)
 
         self.voice_channel.play(
             discord.FFmpegPCMAudio(
@@ -149,26 +153,83 @@ async def random_sound(ctx: commands.context.Context):
     await bot.play_music()
 
 
+@bot.command(name="play")
+async def play_sound(ctx: commands.context.Context, sound_name: str):
+    author = ctx.author
+
+    if author.voice is None or author.voice.channel is None:
+        return
+
+    await bot.connect_to_voice_channel(author.voice.channel)
+    await bot.play_music(sound_name)
+
+
 @bot.command(name="add")
 async def add_sound(ctx: commands.context.Context):
     if len(ctx.message.attachments) == 0:
         await ctx.send("Faut mettre le fichier avec la commande connard")
         return
-    
+
     attachment = ctx.message.attachments[0]
     filename = attachment.filename
 
     if filename.endswith(bot.musics.ALLOWED_EXTENSION):
-        if filename.split(".")[0] in bot.musics:
+        if filename.split(".")[0] in bot.musics.sound_files:
             await ctx.send(f"Le fichier {filename} est déjà présent.")
 
         else:
             await attachment.save(os.path.join(bot.musics.SOUND_PATH, filename))
             bot.musics.add(filename)
             await ctx.send(f"Le fichier {filename} a été ajouté à la liste des sons.")
-            
+
     else:
-        await ctx.send(f"Seules les extensions {bot.musics.ALLOWED_EXTENSION} sont autorisées débile")
+        await ctx.send(
+            f"Seules les extensions {bot.musics.ALLOWED_EXTENSION} sont autorisées débile"
+        )
+
+
+@bot.command(name="sound_list")
+async def sound_list(ctx: commands.context.Context):
+    embed = discord.Embed(
+        title="Liste des sons",
+        color=0x00ff00
+    )
+
+    names = bot.musics.names()
+    weights = bot.musics.prob()
+
+    embed.add_field(name="Nom", value="\n".join(names), inline=True)
+    embed.add_field(name="Poids", value="\n".join(weights), inline=True)
+
+    await ctx.reply(embed=embed)
+    
+
+@bot.command(name="change_weight")
+async def change_weight(ctx: commands.context.Context, name: str, weight: str | float):
+    if name not in bot.musics.sound_files:
+        embed = discord.Embed(
+            title="Erreur",
+            description=f"Le son **{name}** n'est pas présent dans la liste des sons. Utilisez la commande **/sound_list** pour voir la liste    des sons disponibles.",
+            color=0xFF0000
+        )
+    else:
+        try:
+            weight = float(weight.replace(",", "."))
+        except ValueError:
+            embed = discord.Embed(
+                title="Erreur",
+                description=f"**{weight}** n'est pas un poids valide, tu dois mettre un nombre enculé.",
+                color=0xFF0000
+            )
+        else:
+            bot.musics.change_weight(name, weight)
+            embed = discord.Embed(
+                title="Changement de poids",
+                description=f"Le poids du son **{name}** est maintenant de **{str(weight).replace(".", ",")}**.",
+                color=0x00ff00
+            )
+
+    await ctx.reply(embed=embed)
 
 
 @bot.event

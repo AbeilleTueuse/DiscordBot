@@ -1,0 +1,122 @@
+[
+    {
+        "name": "ahhh_vous_voici",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "ah_shit",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "carboniseur",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "ca_va_peter",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "c_est_grille",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "frappe_moi",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "geodrefroy",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "goofy",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "grandiose",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "harry_potter",
+        "extension": "ogg",
+        "weight": 0.1
+    },
+    {
+        "name": "il_est_decede",
+        "extension": "mp4",
+        "weight": "1"
+    },
+    {
+        "name": "je_veux_pas_y_aller_maman",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "les_abonnes",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "les_meilleurs",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "lotr_one_ring",
+        "extension": "mp4",
+        "weight": "1"
+    },
+    {
+        "name": "mon_petit",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "ouais_c_est_greg",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "salut_mon_pote",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "spider_man",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "sweet_home_alabama",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "tarzan",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "typhanie",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "un_boa",
+        "extension": "ogg",
+        "weight": "1"
+    },
+    {
+        "name": "yee",
+        "extension": "ogg",
+        "weight": "1"
+    }
+]

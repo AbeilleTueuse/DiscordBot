@@ -7,12 +7,16 @@ pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tessera
 
 class ReadMessage:
     KEY_WORDS = {
-        "vaincu": "player_death",
-        "mort": "player_death",
-        "Schwarzy a été": "etchebest_invocation",
-        "invoqué": "player_invocation",
+        "Vous avez été vaincu": "abeille_death",
+        "Le spectre de Pierrick a été vaincu": "pierrick_death",
+        "Le spectre de Schwarzy a été vaincu": "etchebest_death",
+        "a été vaincu": "player_death",
+        "Vous êtes invoqué dans un autre monde": "abeille_invocation",
+        "Le spectre de Pierrick a été invoqué": "pierrick_invocation",
+        "Le spectre de Schwarzy a été invoqué": "etchebest_invocation",
+        "a été invoqué": "player_invocation",
         "feu": "fire_alight",
-        "boss": "boss_begin",
+        "a défié le boss de zone": "boss_begin",
     }.items()
 
     TIME_BETWEEN_MESSAGE = 8
