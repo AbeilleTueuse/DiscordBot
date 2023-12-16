@@ -1,8 +1,10 @@
 # bot.py
 import os
 
-import discord
-from discord.ext import commands, tasks
+import nextcord
+from nextcord.ext import commands
+from nextcord.interactions import Interaction
+from nextcord import Embed
 from dotenv import load_dotenv
 import asyncio
 
@@ -11,22 +13,23 @@ from sound.musics import Musics
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
+GUILD_IDS = [1137767167413211216]
 
 
 class MyBot(commands.Bot):
     FFMPEG_EXECUTABLE = r"ffmpeg\bin\ffmpeg.exe"
 
-    def __init__(self, command_prefix, intents):
-        super().__init__(command_prefix=command_prefix, intents=intents)
-        self.guild = None
+    def __init__(self):
+        super().__init__()
         self.is_running = False
         self.voice_channel = None
         self.game_event = GameEvent()
         self.musics = Musics()
+        
 
     async def on_ready(self):
         print(f"{self.user} has connected to Discord!")
-        self.guild = self.guilds[0]
+
         # general_channel = discord.utils.get(self.guild.channels, name="général")
 
         # if general_channel:
@@ -51,9 +54,11 @@ class MyBot(commands.Bot):
             ):
                 await bot.play_music("il_est_decede")
 
+            elif event == "pierrick_invocation":
+                await bot.play_music("les_meilleurs")
+
             elif (
                 (event == "abeille_invocation")
-                or (event == "pierrick_invocation")
                 or (event == "etchebest_invocation")
                 or (event == "player_invocation")
             ):
@@ -70,6 +75,7 @@ class MyBot(commands.Bot):
                 print(f"Event {event} isn't added.")
 
     async def play_music(self, audio_name: str = None):
+        print(self.voice_channel)
         if self.voice_channel is None:
             return
 
@@ -82,16 +88,19 @@ class MyBot(commands.Bot):
         audio_path = self.musics.path(audio_name)
 
         self.voice_channel.play(
-            discord.FFmpegPCMAudio(
-                executable=self.FFMPEG_EXECUTABLE, source=audio_path
+            nextcord.FFmpegPCMAudio(
+                source=audio_path
             ),
         )
 
     async def connect_to_voice_channel(
-        self, voice_channel: discord.channel.VoiceChannel
+        self, user: nextcord.member.Member
     ):
+        if user.voice is None or user.voice.channel is None:
+            return
+        
         if self.voice_channel is None:
-            self.voice_channel = await voice_channel.connect()
+            self.voice_channel = await user.voice.channel.connect()
 
     async def disconnect_to_voice_channel(self):
         if self.voice_channel is None:
@@ -101,20 +110,15 @@ class MyBot(commands.Bot):
         self.voice_channel = None
 
 
-intents = discord.Intents.all()
-bot = MyBot(command_prefix="/", intents=intents)
+bot = MyBot()
 
 
-@bot.command(name="start")
-async def connect_to_voice_channel(ctx: commands.context.Context):
+@bot.slash_command(name="lancer", description="Joue des sons selon les évènements du jeu.", guild_ids=GUILD_IDS)
+async def start(interaction: Interaction):
     if not bot.is_running:
         bot.is_running = True
-        author = ctx.author
 
-        if author.voice is None or author.voice.channel is None:
-            return
-
-        await bot.connect_to_voice_channel(author.voice.channel)
+        await bot.connect_to_voice_channel(interaction.user)
         await bot.play_music()
 
         while bot.is_running:
@@ -122,75 +126,61 @@ async def connect_to_voice_channel(ctx: commands.context.Context):
             await asyncio.sleep(1)
 
 
-@bot.command(name="join")
-async def join_voice_channel(ctx: commands.context.Context):
+@bot.slash_command(name="rejoindre", description="Demande au bot de te rejoindre sur ton salon vocal.", guild_ids=GUILD_IDS)
+async def join_voice_channel(interaction: Interaction):
     if bot.voice_channel is not None:
         return
 
-    author = ctx.author
-    if author.voice is None or author.voice.channel is None:
-        return
-
-    await bot.connect_to_voice_channel(author.voice.channel)
+    await bot.connect_to_voice_channel(interaction.user)
     await bot.play_music()
 
 
-@bot.command(name="stop")
-async def disconnect_to_voice_channel(ctx):
+@bot.slash_command(name="stop", description="Arrête l'analyse du jeu et déconnecte le bot du salon vocal.", guild_ids=GUILD_IDS)
+async def disconnect_to_voice_channel(interaction):
     bot.is_running = False
     await bot.play_music()
     await bot.disconnect_to_voice_channel()
 
 
-@bot.command(name="random")
-async def random_sound(ctx: commands.context.Context):
-    author = ctx.author
-
-    if author.voice is None or author.voice.channel is None:
-        return
-
-    await bot.connect_to_voice_channel(author.voice.channel)
+@bot.slash_command(name="aléatoire", description="Joue un son au hasard.", guild_ids=GUILD_IDS)
+async def random_sound(interaction: Interaction):
+    await bot.connect_to_voice_channel(interaction.user)
     await bot.play_music()
 
 
-@bot.command(name="play")
-async def play_sound(ctx: commands.context.Context, sound_name: str):
-    author = ctx.author
-
-    if author.voice is None or author.voice.channel is None:
-        return
-
-    await bot.connect_to_voice_channel(author.voice.channel)
+@bot.slash_command(name="jouer", description="Joue le son choisi.", guild_ids=GUILD_IDS)
+async def play_sound(interaction: Interaction, sound_name: str):
+    await bot.connect_to_voice_channel(interaction.user)
     await bot.play_music(sound_name)
 
 
-@bot.command(name="add")
-async def add_sound(ctx: commands.context.Context):
-    if len(ctx.message.attachments) == 0:
-        await ctx.send("Faut mettre le fichier avec la commande connard")
+@bot.slash_command(name="ajouter", description="Ajoute le son en pièce-jointe.", guild_ids=GUILD_IDS)
+async def add_sound(interaction: Interaction):
+    if len(interaction.message.attachments) == 0:
+        await interaction.send("Faut mettre le fichier avec la commande connard")
         return
 
-    attachment = ctx.message.attachments[0]
+    attachment = interaction.message.attachments[0]
     filename = attachment.filename
 
     if filename.endswith(bot.musics.ALLOWED_EXTENSION):
         if filename.split(".")[0] in bot.musics.sound_files:
-            await ctx.send(f"Le fichier {filename} est déjà présent.")
+            await interaction.send(f"Le fichier {filename} est déjà présent.")
 
         else:
             await attachment.save(os.path.join(bot.musics.SOUND_PATH, filename))
             bot.musics.add(filename)
-            await ctx.send(f"Le fichier {filename} a été ajouté à la liste des sons.")
+            await interaction.send(f"Le fichier {filename} a été ajouté à la liste des sons.")
 
     else:
-        await ctx.send(
+        await interaction.send(
             f"Seules les extensions {bot.musics.ALLOWED_EXTENSION} sont autorisées débile"
         )
 
 
-@bot.command(name="sound_list")
-async def sound_list(ctx: commands.context.Context):
-    embed = discord.Embed(
+@bot.slash_command(name="liste_sons", description="Affiche la liste des sons disponibles avec leur probabilité.", guild_ids=GUILD_IDS)
+async def sound_list(interaction: Interaction):
+    embed = Embed(
         title="Liste des sons",
         color=0x00ff00
     )
@@ -201,13 +191,13 @@ async def sound_list(ctx: commands.context.Context):
     embed.add_field(name="Nom", value="\n".join(names), inline=True)
     embed.add_field(name="Poids", value="\n".join(weights), inline=True)
 
-    await ctx.reply(embed=embed)
+    await interaction.send(embed=embed)
     
 
-@bot.command(name="change_weight")
-async def change_weight(ctx: commands.context.Context, name: str, weight: str | float):
+@bot.slash_command(name="changer_poids", description="Change la probabilité d'apparaître d'un son.", guild_ids=GUILD_IDS)
+async def change_weight(interaction: Interaction, name: str, weight: str | float):
     if name not in bot.musics.sound_files:
-        embed = discord.Embed(
+        embed = Embed(
             title="Erreur",
             description=f"Le son **{name}** n'est pas présent dans la liste des sons. Utilisez la commande **/sound_list** pour voir la liste    des sons disponibles.",
             color=0xFF0000
@@ -216,33 +206,33 @@ async def change_weight(ctx: commands.context.Context, name: str, weight: str | 
         try:
             weight = float(weight.replace(",", "."))
         except ValueError:
-            embed = discord.Embed(
+            embed = Embed(
                 title="Erreur",
                 description=f"**{weight}** n'est pas un poids valide, tu dois mettre un nombre enculé.",
                 color=0xFF0000
             )
         else:
             bot.musics.change_weight(name, weight)
-            embed = discord.Embed(
+            embed = Embed(
                 title="Changement de poids",
                 description=f"Le poids du son **{name}** est maintenant de **{str(weight).replace(".", ",")}**.",
                 color=0x00ff00
             )
 
-    await ctx.reply(embed=embed)
+    await interaction.send(embed=embed)
 
 
 @bot.event
 async def on_voice_state_update(
-    member: discord.member.Member,
-    before: discord.member.VoiceState,
-    after: discord.member.VoiceState,
+    member: nextcord.member.Member,
+    before: nextcord.member.VoiceState,
+    after: nextcord.member.VoiceState,
 ):
     if member.id == bot.application_id:
         return
 
     if before.channel is None and after.channel is not None:
-        await bot.connect_to_voice_channel(after.channel)
+        await bot.connect_to_voice_channel(member)
         if after.channel.id == bot.voice_channel.channel.id:
             await bot.play_music()
     elif (

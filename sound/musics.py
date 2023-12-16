@@ -11,7 +11,7 @@ class Musics:
     def __init__(self):
         self.sound_files, self.weights = self._get_sounds_data()
 
-    def _open_json(self):
+    def _open_json(self) -> list:
         with open(self.INFO_PATH, "r") as file:
             return json.load(file)
         
@@ -34,8 +34,20 @@ class Musics:
         return rd.choices(population=list(self.sound_files.keys()), weights=self.weights)[0]
 
     def add(self, filename: str):
-        self.sound_files[filename.split(".")[0]] = filename
-        self.weights.append(1)
+        data = self._open_json()
+        data.append(self.info_file(filename))
+        self._save_json(data)
+        self.__init__()
+
+    def remove(self, sound_name: str):
+        data = self._open_json()
+        for sound_info in data:
+            if sound_info["name"] == sound_name:
+                data.remove(sound_info)
+                os.remove(self.path(sound_name, strict=True))
+                break
+        self._save_json(data)
+        self.__init__()
 
     def names(self):
         return self.sound_files.keys()
@@ -44,11 +56,14 @@ class Musics:
         total = sum(self.weights)
         return map(lambda weight: f"{weight} ({weight/total * 100:.2f} %)".replace(".", ","), self.weights)
 
-    def path(self, audio_name: str | None):
-        if (audio_name is None) or (audio_name not in self.sound_files):
-            audio_name = self.random_choice()
+    def path(self, sound_name: str | None, strict=False):
+        if strict:
+            return os.path.join(self.SOUND_PATH, self.sound_files[sound_name])
+        
+        if (sound_name is None) or (sound_name not in self.sound_files):
+            sound_name = self.random_choice()
 
-        return os.path.join(self.SOUND_PATH, self.sound_files[audio_name])
+        return os.path.join(self.SOUND_PATH, self.sound_files[sound_name])
     
     def change_weight(self, sound_name: str, new_weight: float):
         data = self._open_json()
@@ -58,17 +73,13 @@ class Musics:
                 data[index]["weight"] = new_weight
                 self._save_json(data)
                 break
+
+    def info_file(self, filename: str, weight = 1):
+        name, extension = filename.split(".")
+        return {"name": name, "extension": extension, "weight": weight}
                 
     def create_info_file(self):
-        info = [
-            {
-                "name": sound_name.split(".")[0],
-                "extension": sound_name.split(".")[-1],
-                "weight": "1",
-            }
-            for sound_name in os.listdir(self.SOUND_PATH)
-        ]
-
+        info = [self.info_file(filename) for filename in os.listdir(self.SOUND_PATH)]
         self._save_json(info)
 
         print(f"File saved in {self.INFO_PATH}.")

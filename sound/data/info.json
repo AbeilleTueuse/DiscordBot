@@ -47,7 +47,7 @@
     {
         "name": "harry_potter",
         "extension": "ogg",
-        "weight": 0.1
+        "weight": 0.2
     },
     {
         "name": "il_est_decede",
@@ -77,7 +77,7 @@
     {
         "name": "mon_petit",
         "extension": "ogg",
-        "weight": "1"
+        "weight": 1.0
     },
     {
         "name": "ouais_c_est_greg",
