@@ -1,166 +1,16 @@
-# import os
-
-# import nextcord
-# from nextcord.ext import commands
-# from nextcord import Interaction
-# from dotenv import load_dotenv
-# import asyncio
-
-# from event.game_event import GameEvent
-# from sound.musics import Musics
-
-
-# GUILD_IDS = [1137767167413211216]
-# load_dotenv()
-# TOKEN = os.getenv("DISCORD_TOKEN")
-
-# class MyBot(commands.Bot):
-#     FFMPEG_EXECUTABLE = r"ffmpeg\bin\ffmpeg.exe"
-
-#     def __init__(self):
-#         super().__init__()
-#         self.is_running = False
-#         self.voice_channel = None
-#         self.game_event = GameEvent()
-#         self.musics = Musics()
-
-
-#     async def on_ready(self):
-#         print(f"{self.user} has connected to Discord!")
-
-#         # general_channel = discord.utils.get(self.guild.channels, name="général")
-
-#         # if general_channel:
-#         #     await general_channel.send("Hello mother fucker")
-#         # else:
-#         #     print("Le salon général n'a pas été trouvé.")
-
-#     async def detect_game_event(self):
-#         screen = self.game_event.get_screen()
-
-#         if self.game_event.boss_detection.play_music(screen):
-#             await bot.play_music()
-
-#         event = self.game_event.read_message.image_to_game_event(screen)
-
-#         if event is not None:
-#             if (
-#                 (event == "abeille_death")
-#                 or (event == "pierrick_death")
-#                 or (event == "etchebest_death")
-#                 or (event == "player_death")
-#             ):
-#                 await bot.play_music("il_est_decede")
-
-#             elif event == "pierrick_invocation":
-#                 await bot.play_music("les_meilleurs")
-
-#             elif (
-#                 (event == "abeille_invocation")
-#                 or (event == "etchebest_invocation")
-#                 or (event == "player_invocation")
-#             ):
-#                 await bot.play_music()
-
-#             elif event == "fire_alight":
-#                 await bot.play_music("lotr_one_ring")
-
-#             elif event == "boss_begin":
-#                 self.game_event.boss_detection.boss_is_alive = True
-#                 await bot.play_music()
-
-#             else:
-#                 print(f"Event {event} isn't added.")
-
-#     async def play_music(self, audio_name: str = None):
-#         if self.voice_channel is None:
-#             return
-
-#         # if len(self.voice_channel.channel.members) == 1:
-#         #     return
-
-#         if self.voice_channel.is_playing():
-#             return
-
-#         audio_path = self.musics.path(audio_name)
-
-#         self.voice_channel.play(
-#             nextcord.FFmpegPCMAudio(
-#                 source=audio_path
-#             ),
-#         )
-
-#         while self.voice_channel.is_playing():
-#             await asyncio.wait(1)
-
-#     async def connect_to_voice_channel(
-#         self, user: nextcord.member.Member
-#     ):
-#         if user.voice is None or user.voice.channel is None:
-#             return
-
-#         if self.voice_channel is None:
-#             self.voice_channel = await user.voice.channel.connect()
-
-#     async def disconnect_to_voice_channel(self):
-#         await self.voice_channel.disconnect()
-
-
-# bot = MyBot()
-
-
-# @bot.event
-# async def on_ready():
-#     print(f'We have logged in as {bot.user}')
-
-
-# @bot.slash_command(name="lancer", description="Joue des sons selon les évènements du jeu.", guild_ids=GUILD_IDS)
-# async def start(interaction: Interaction):
-#     if not bot.is_running:
-#         bot.is_running = True
-
-#         await bot.connect_to_voice_channel(interaction.user)
-#         await bot.play_music()
-
-#         await interaction.send("Le programme est lancé.")
-
-#         while bot.is_running:
-#             await bot.detect_game_event()
-#             await asyncio.sleep(1)
-
-
-# @bot.slash_command(name="rejoindre", description="Demande au bot de te rejoindre sur ton salon vocal.", guild_ids=GUILD_IDS)
-# async def join_voice_channel(interaction: Interaction):
-#     if bot.voice_channel is not None:
-#         return
-
-#     await bot.connect_to_voice_channel(interaction.user)
-#     await bot.play_music()
-
-#     if bot.voice_channel is not None:
-#         await interaction.send("Je suis là !")
-#     else:
-#         await interaction.send("Je n'ai pas pu te rejoindre.")
-
-# @bot.slash_command(name="stop", description="Arrête l'analyse du jeu et déconnecte le bot du salon vocal.", guild_ids=GUILD_IDS)
-# async def disconnect_to_voice_channel(interaction: Interaction):
-#     bot.is_running = False
-#     await bot.play_music()
-#     await bot.disconnect_to_voice_channel()
-
-#     await interaction.send("Au revoir.")
-
-# bot.run(TOKEN)
-
 import os
 
 import nextcord
 from nextcord.ext import commands
 from nextcord import Interaction, Embed
 import asyncio
+from dotenv import load_dotenv
 
 from event.game_event import GameEvent
 from sound.musics import Musics
+
+load_dotenv()
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 
 class MyBot(commands.Bot):
@@ -220,13 +70,6 @@ class MyBot(commands.Bot):
             server_session = ServerSession(voice_client)
             self.server_session = server_session
             return server_session
-
-    async def disconnect_to_voice_channel(self):
-        if self.voice_channel is None:
-            return
-
-        await self.voice_channel.disconnect()
-        self.voice_channel = None
 
     async def get_session(self, interaction: Interaction | None = None, voice_state: nextcord.member.VoiceState | None = None):
         if interaction is not None:
@@ -461,4 +304,4 @@ async def on_voice_state_update(
         await bot.play_music(voice_state=before)
 
 
-bot.run("MTE4NDA1MTMxNzc1MzI2MjA4MA.GpFltY.yLkb2CgoUlfkP4Okh8ompkzaO243yASkO3vHH0")
+bot.run(TOKEN)
