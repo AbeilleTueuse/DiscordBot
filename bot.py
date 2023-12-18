@@ -1,4 +1,5 @@
 import os
+import sys
 
 import nextcord
 from nextcord.ext import commands
@@ -26,11 +27,11 @@ class MyBot(commands.Bot):
     async def on_ready(self):
         print(f"{self.user} has connected to Discord!")
 
-    async def detect_game_event(self, interaction: Interaction):
+    async def detect_game_event(self):
         screen = self.game_event.get_screen()
 
         if self.game_event.boss_detection.play_music(screen):
-            await bot.play_music(interaction)
+            await bot.play_music()
 
         event = self.game_event.read_message.image_to_game_event(screen)
 
@@ -41,24 +42,24 @@ class MyBot(commands.Bot):
                 or (event == "etchebest_death")
                 or (event == "player_death")
             ):
-                await bot.play_music(interaction, "il_est_decede")
+                await bot.play_music("il_est_decede")
 
             elif event == "pierrick_invocation":
-                await bot.play_music(interaction, "les_meilleurs")
+                await bot.play_music("les_meilleurs")
 
             elif (
                 (event == "abeille_invocation")
                 or (event == "etchebest_invocation")
                 or (event == "player_invocation")
             ):
-                await bot.play_music(interaction)
+                await bot.play_music()
 
             elif event == "fire_alight":
-                await bot.play_music(interaction, "lotr_one_ring")
+                await bot.play_music("lotr_one_ring")
 
             elif event == "boss_begin":
                 self.game_event.boss_detection.boss_is_alive = True
-                await bot.play_music(interaction)
+                await bot.play_music()
 
             else:
                 print(f"Event {event} isn't added.")
@@ -87,7 +88,7 @@ class MyBot(commands.Bot):
         else:
             server_session = bot.server_session
 
-            if bot.server_session.voice_client.channel != voice_state.channel:
+            if (voice_state is not None) and (bot.server_session.voice_client.channel != voice_state.channel):
                 await server_session.voice_client.move_to(
                     voice_state.channel
                 )
@@ -155,7 +156,7 @@ async def start(interaction: Interaction):
     await interaction.send(f"L'application est lancée.")
 
     while bot.is_running:
-        await bot.detect_game_event(interaction)
+        await bot.detect_game_event()
         await asyncio.sleep(1)
 
 
@@ -163,13 +164,13 @@ async def start(interaction: Interaction):
 async def stop(interaction: Interaction):
     """Arrête l'analyse du jeu et déconnecte le bot du salon vocal."""
 
-    if not bot.is_running:
+    if not bot.is_running and interaction is not None:
         await interaction.send("L'application n'a pas été lancée.")
         return
 
     bot.is_running = False
 
-    if bot.server_session is None:
+    if bot.server_session is None and interaction is not None:
         await interaction.send(f"Au revoir !")
         return
 
@@ -177,17 +178,32 @@ async def stop(interaction: Interaction):
     await voice_client.disconnect()
     voice_client.cleanup()
     bot.server_session = None
-    await interaction.send(f"Au revoir !")
+    
+    if interaction is not None:
+        await interaction.send(f"Au revoir !")
 
 
-@bot.slash_command(name="aléatoire")
+@bot.slash_command(name="relancer")
+async def restart(interaction: Interaction):
+  """Arrête le bot et le relance."""
+  await stop(interaction)
+  await interaction.send("Le bot va être relancé...")
+  os.execv(sys.executable, ['python'] + sys.argv)
+
+
+@bot.slash_command(name="son")
+async def sound(interaction: Interaction):
+    pass
+
+
+@sound.subcommand(name="aléatoire")
 async def random_sound(interaction: Interaction):
     """Joue un son au hasard."""
     await bot.play_music(interaction=interaction)
     await interaction.send("Voilà un son aléatoire.")
 
 
-@bot.slash_command(name="écouter")
+@sound.subcommand(name="écouter")
 async def play_sound(
     interaction: Interaction,
     sound_name: str = nextcord.SlashOption(
@@ -202,7 +218,7 @@ async def play_sound(
     await interaction.send(f"Voilà le son **{sound_name}**.")
 
 
-@bot.slash_command(name="ajouter")
+@sound.subcommand(name="ajouter")
 async def add_sound(
     interaction: Interaction,
     attachment: nextcord.Attachment = nextcord.SlashOption(
@@ -231,7 +247,7 @@ async def add_sound(
         )
 
 
-@bot.slash_command(name="supprimer")
+@sound.subcommand(name="supprimer")
 async def add_sound(
     interaction: Interaction,
     sound_name: str = nextcord.SlashOption(
@@ -246,7 +262,7 @@ async def add_sound(
     await interaction.send(f"Le son **{sound_name}** a été supprimé.")
 
 
-@bot.slash_command(name="liste")
+@sound.subcommand(name="liste")
 async def sound_list(interaction: Interaction):
     """Affiche la liste des sons disponibles avec leur probabilité."""
     embed = Embed(
@@ -263,7 +279,7 @@ async def sound_list(interaction: Interaction):
     await interaction.send(embed=embed)
 
 
-@bot.slash_command(name="changer_poids")
+@sound.subcommand(name="changer_poids")
 async def change_weight(
     interaction: nextcord.Interaction,
     sound_name: str = nextcord.SlashOption(
@@ -301,6 +317,9 @@ async def on_voice_state_update(
     if before.channel is None and after.channel is not None:
         await bot.play_music(voice_state=after)
     elif before.channel is not None and after.channel is None:
+        if len(before.channel.members) == 1:
+            await stop(interaction=None)
+            return
         await bot.play_music(voice_state=before)
 
 
