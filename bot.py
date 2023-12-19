@@ -168,6 +168,9 @@ async def start(interaction: Interaction):
 
     await bot.play_music(interaction=interaction)
 
+    if interaction.user.voice is None or interaction.user.voice.channel is None:
+        return
+
     bot.is_running = True
     await interaction.send(f"L'application est lancée.")
 
@@ -186,8 +189,9 @@ async def stop(interaction: Interaction):
 
     bot.is_running = False
 
-    if bot.server_session is None and interaction is not None:
-        await interaction.send(f"Au revoir !")
+    if bot.server_session is None:
+        if interaction is not None:
+            await interaction.send(f"Au revoir !")
         return
 
     voice_client = bot.server_session.voice_client
@@ -199,14 +203,6 @@ async def stop(interaction: Interaction):
         await interaction.send(f"Au revoir !")
 
 
-@bot.slash_command(name="relancer")
-async def restart(interaction: Interaction):
-  """Arrête le bot et le relance."""
-  await stop(interaction)
-  await interaction.send("Le bot va être relancé...")
-  os.execv(sys.executable, ['python'] + sys.argv)
-
-
 @bot.slash_command(name="évènement")
 async def event(interaction: Interaction):
     pass
@@ -216,9 +212,59 @@ async def pseudo(interaction: Interaction):
     pass
 
 
+@event.subcommand(name="global")
+async def global_event(interaction: Interaction):
+    pass
+
+
+@global_event.subcommand(name="liste")
+async def global_event_list(interaction: Interaction):
+    """Liste des des sons par évènements global."""
+    event_global = bot.game_event.event_global
+
+    if not event_global:
+        await interaction.send("Aucun évènement global n'est ajouté.")
+        return
+    
+    embed = Embed(
+        title="Liste des sons par évènement global.",
+        color=0x00ff00
+    )
+    for event_name, event_info in event_global.items():
+        embed.add_field(name=bot.game_event.translate_global_event(event_name), value=event_info, inline=True)
+ 
+    await interaction.send(embed=embed)
+
+
+# @global_event.subcommand(name="ajouter")
+# async def add_global_event(
+#     interaction: Interaction,
+#     event_name: str = nextcord.SlashOption(
+#         name="pseudo",
+#         description="Pseudo à ajouter.",
+#         required=True,
+#         ),
+#     ):
+#     """Liste des des sons par évènements global."""
+#     event_global = bot.game_event.event_global
+
+#     if not event_global:
+#         await interaction.send("Aucun évènement global n'est ajouté.")
+#         return
+    
+#     embed = Embed(
+#         title="Liste des sons par évènement global.",
+#         color=0x00ff00
+#     )
+#     for event_name, event_info in event_global.items():
+#         embed.add_field(name=bot.game_event.translate_global_event(event_name), value=event_info, inline=True)
+ 
+#     await interaction.send(embed=embed)
+
+
 @pseudo.subcommand(name="liste")
 async def pseudo_list(interaction: Interaction):
-    """Liste des des sons par évènements pour chaque joueur ajouté."""
+    """Liste des sons par évènements pour chaque joueur ajouté."""
     event_per_pseudo = bot.game_event.event_per_pseudo
 
     if event_per_pseudo.empty:
@@ -230,8 +276,8 @@ async def pseudo_list(interaction: Interaction):
         color=0x00ff00
     )
     embed.add_field(name="Pseudo", value="\n".join(event_per_pseudo.index), inline=True)
-    for event in event_per_pseudo.columns:
-        embed.add_field(name=bot.game_event.translate_event(event), value="\n".join(event_per_pseudo.loc[:, event]), inline=True)
+    for event_name in event_per_pseudo.columns:
+        embed.add_field(name=bot.game_event.translate_event(event_name), value="\n".join(event_per_pseudo.loc[:, event_name]), inline=True)
  
     await interaction.send(embed=embed)
 
@@ -444,7 +490,7 @@ async def on_voice_state_update(
     if before.channel is None and after.channel is not None:
         await bot.play_music(voice_state=after)
     elif before.channel is not None and after.channel is None:
-        if len(before.channel.members) == 1:
+        if len(before.channel.members) <= 1:
             await stop(interaction=None)
             return
         await bot.play_music(voice_state=before)

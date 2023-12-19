@@ -4,6 +4,7 @@ import json
 
 from PIL import ImageGrab
 import pandas as pd
+import regex as re
 
 from event.detect_boss import BossDetection
 from event.read_message import ReadMessage
@@ -15,13 +16,18 @@ class GameEvent:
     EVENT_PER_PSEUDO_PATH = os.path.join("event", "event_per_pseudo.txt")
     DEFAULT_EVENT_SOUND = {
         "invocation": "random",
-        "death": "il_est_decede"
+        "death": "il_est_decede",
         }
     EVENT_TO_FRENCH = {
         "invocation": "Invocation",
-        "death": "Mort"
+        "death": "Mort",
+        "fire": "Feu",
+        "boss": "Boss"
     }
     FRENCH_TO_EVENT = {value: key for key, value in EVENT_TO_FRENCH.items()}
+
+    BOSS_REGEX = r"boss_(\d+)"
+    BOSS_DISPLAY = "Boss {} %"
 
     def __init__(self):
         self.bbox = self._calc_bbox()
@@ -42,7 +48,7 @@ class GameEvent:
         image = ImageGrab.grab(bbox=self.bbox)
         return np.array(image)
 
-    def _get_event_global(self) -> list:
+    def _get_event_global(self) -> dict:
         with open(self.EVENT_GLOBAL_PATH, "r") as file:
             return json.load(file)
         
@@ -67,10 +73,17 @@ class GameEvent:
         self.event_per_pseudo.drop(pseudo, inplace=True)
         self._save_event_per_pseudo()
 
-    def translate_event(self, event: str):
-        if event in self.EVENT_TO_FRENCH:
-            return self.EVENT_TO_FRENCH[event]
-        return event
+    def translate_event(self, event_name: str):        
+        if event_name in self.EVENT_TO_FRENCH:
+            return self.EVENT_TO_FRENCH[event_name]
+        
+        return event_name
+    
+    def translate_global_event(self, event_name: str):
+        match = re.match(self.BOSS_REGEX, event_name)
+        if match:
+            return self.BOSS_DISPLAY.format(match.group(1))
+        return self.translate_event(event_name)
     
     def untranslate_event(self, event: str):
         if event in self.FRENCH_TO_EVENT:
