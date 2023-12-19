@@ -1,92 +1,74 @@
 import os
 import random as rd
 import json
+import pandas as pd
 
 
 class Musics:
     SOUND_PATH = os.path.join("sound", "data")
-    INFO_PATH = os.path.join(SOUND_PATH, "info.json")
+    INFO_PATH = os.path.join(SOUND_PATH, "_sound_info.csv")
     ALLOWED_EXTENSION = (".mp3", ".mp4", ".ogg")
 
+    EXTENSION_COLUMN = "extension"
+    WEIGHT_COLUMN = "weight"
+
     def __init__(self):
-        self.sound_files, self.weights = self._get_sounds_data()
+        self.sound_info = self._read_csv()
 
-    def _open_json(self) -> list:
-        with open(self.INFO_PATH, "r") as file:
-            return json.load(file)
+    def _read_csv(self):
+        return pd.read_csv(self.INFO_PATH, index_col=[0])
         
-    def _save_json(self, data: dict):
-        with open(self.INFO_PATH, "w") as file:
-            json.dump(data, file, indent=4)
-    
-    def _get_sounds_data(self):
-        data = self._open_json()
-        weights = []
-        sound_files = {}
-        for sound_info in data:
-            weights.append(float(sound_info["weight"]))
-            sound_file = f"{sound_info["name"]}.{sound_info["extension"]}"
-            sound_files[sound_info["name"]] = sound_file
-
-        return sound_files, weights
+    def _save_csv(self):
+        self.sound_info.to_csv(self.INFO_PATH)
 
     def random_choice(self):
-        return rd.choices(population=list(self.sound_files.keys()), weights=self.weights)[0]
+        return self.sound_info.sample(n=1, weights=self.WEIGHT_COLUMN).index[0]
 
     def add(self, filename: str):
-        data = self._open_json()
-        data.append(self.info_file(filename))
-        self._save_json(data)
-        self.__init__()
+        name, columns = self.from_filename(filename)
+        self.sound_info.loc[name] = columns
+        self._save_csv()
 
     def remove(self, sound_name: str):
-        data = self._open_json()
-        for sound_info in data:
-            if sound_info["name"] == sound_name:
-                data.remove(sound_info)
-                sound_path = self.path(sound_name, strict=True)
-                if os.path.exists(sound_path):
-                    os.remove(sound_path)
-                break
-        self._save_json(data)
-        self.__init__()
+        sound_path = self.get_path(sound_name, strict=True)
+        self.sound_info.drop([sound_name], inplace=True)
 
-    def names(self):
-        return self.sound_files.keys()
+        if os.path.exists(sound_path):
+            os.remove(sound_path)
+
+        self._save_csv()
+
+    def get_names(self):
+        return self.sound_info.index.to_list()
     
-    def prob(self):
-        total = sum(self.weights)
-        return map(lambda weight: f"{weight} ({weight/total * 100:.2f} %)".replace(".", ","), self.weights)
+    def get_probabilities(self):
+        weights = self.sound_info[self.WEIGHT_COLUMN]
+        total = weights.sum()
+        return map(lambda weight: f"{weight} ({weight/total * 100:.2f} %)".replace(".", ","), weights)
 
-    def path(self, sound_name: str | None, strict=False):
+    def get_path(self, sound_name: str | None, strict=False):
         if strict:
-            return os.path.join(self.SOUND_PATH, self.sound_files[sound_name])
+            return os.path.join(self.SOUND_PATH, f"{sound_name}.{self.sound_info.loc[sound_name, self.EXTENSION_COLUMN]}")
         
-        if (sound_name is None) or (sound_name not in self.sound_files):
+        if (sound_name is None) or (sound_name not in self.sound_info.index):
             sound_name = self.random_choice()
 
-        return os.path.join(self.SOUND_PATH, self.sound_files[sound_name])
+        return os.path.join(self.SOUND_PATH, f"{sound_name}.{self.sound_info.loc[sound_name, self.EXTENSION_COLUMN]}")
     
     def change_weight(self, sound_name: str, new_weight: float):
-        data = self._open_json()
-        for index, sound_info in enumerate(data):
-            if sound_info["name"] == sound_name:
-                self.weights[index] = new_weight
-                data[index]["weight"] = new_weight
-                self._save_json(data)
-                break
+        self.sound_info.loc[sound_name, self.WEIGHT_COLUMN] = new_weight
+        self._save_csv()
 
-    def info_file(self, filename: str, weight = 1):
+    def from_filename(self, filename: str, weight = 1):
         name, extension = filename.split(".")
-        return {"name": name, "extension": extension, "weight": weight}
-                
-    def create_info_file(self):
-        info = [self.info_file(filename) for filename in os.listdir(self.SOUND_PATH)]
-        self._save_json(info)
-
-        print(f"File saved in {self.INFO_PATH}.")
+        return name, {self.EXTENSION_COLUMN: extension, self.WEIGHT_COLUMN: weight}
+    
+    def has_sound(self, filename: str):
+        return filename.split(".")[0] in self.sound_info.index
 
 
 if __name__ == "__main__":
-    test = "0,5"
-    float(test)
+    musics = Musics()
+    musics.add("caca.mp4")
+    musics.remove("caca")
+    print(musics.sound_info)

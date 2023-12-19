@@ -102,7 +102,7 @@ class MyBot(commands.Bot):
         if server_session is None:
             return
 
-        audio_path = self.musics.path(audio_name)
+        audio_path = self.musics.get_path(audio_name)
         self.server_session.add_to_queue(audio_path)
         if (
             not self.server_session.voice_client.is_playing()
@@ -145,12 +145,17 @@ bot = MyBot(intents=intents)
 
 
 async def autocomplete_pseudo(interaction: Interaction, user_input: str):
-    current_pseudo = bot.game_event.get_event_per_pseudo().keys()
+    current_pseudo = bot.game_event.event_per_pseudo.index
     return filter(lambda pseudo : string_normalisation(user_input) in string_normalisation(pseudo), current_pseudo)
 
 
+async def autocomplete_event(interaction: Interaction, user_input: str):
+    current_event = [bot.game_event.translate_event(event).lower() for event in bot.game_event.event_per_pseudo.columns]
+    return filter(lambda pseudo : string_normalisation(user_input) in string_normalisation(pseudo), current_event)
+
+
 async def autocomplete_sound(interaction: Interaction, user_input: str):
-    current_sounds = bot.musics.names()
+    current_sounds = bot.musics.get_names()
     return filter(lambda sound : string_normalisation(user_input) in string_normalisation(sound), current_sounds)
 
 
@@ -213,18 +218,21 @@ async def pseudo(interaction: Interaction):
 
 @pseudo.subcommand(name="liste")
 async def pseudo_list(interaction: Interaction):
-    """Liste des joueurs ajoutés dans la détection des évènements."""
-    pseudo = list(bot.game_event.get_event_per_pseudo().keys())
+    """Liste des des sons par évènements pour chaque joueur ajouté."""
+    event_per_pseudo = bot.game_event.event_per_pseudo
 
-    if not pseudo:
+    if event_per_pseudo.empty:
         await interaction.send("Il n'y a encore aucun pseudo ajouté.")
         return
 
     embed = Embed(
-        title="Liste des pseudo",
+        title="Liste des sons par pseudo et évènement",
         color=0x00ff00
     )
-    embed.add_field(name="Pseudo", value="\n".join(pseudo))
+    embed.add_field(name="Pseudo", value="\n".join(event_per_pseudo.index), inline=True)
+    for event in event_per_pseudo.columns:
+        embed.add_field(name=bot.game_event.translate_event(event), value="\n".join(event_per_pseudo.loc[:, event]), inline=True)
+ 
     await interaction.send(embed=embed)
 
 
@@ -235,13 +243,14 @@ async def add_pseudo(
         name="pseudo",
         description="Pseudo à ajouter.",
         required=True,
-)):
+    ),
+):
     """Ajoute un nouveau pseudo à la liste des évènements."""
-    if bot.game_event.pseudo_is_added(pseudo):
-        await interaction.send(f"Le pseudo {pseudo} est déjà ajouté.")
-    else:
+    if bot.game_event.is_new_pseudo(pseudo):
         bot.game_event.add_pseudo(pseudo)
-        await interaction.send(f"Le pseudo {pseudo} a été ajouté.")
+        await interaction.send(f"Le pseudo **{pseudo}** a été ajouté avec les sons par défaut.")
+    else:
+        await interaction.send(f"Le pseudo **{pseudo}** est déjà ajouté.")
 
 
 @pseudo.subcommand(name="supprimer")
@@ -252,13 +261,53 @@ async def delete_pseudo(
         description="Pseudo à supprimer.",
         required=True,
         autocomplete_callback=autocomplete_pseudo
-)):
+    ),
+):
     """Supprime un pseudo de la liste des évènements."""
-    if bot.game_event.pseudo_is_added():
-        bot.game_event.delete_pseudo(pseudo)
-        await interaction.send(f"Le pseudo {pseudo} a été supprimé.")
+    if bot.game_event.is_new_pseudo(pseudo):
+        await interaction.send(f"Le pseudo **{pseudo}** n'est pas présent dans la liste des pseudo ajoutés.")
     else:
-        await interaction.send(f"Le pseudo {pseudo} n'est pas présent dans la liste des pseudo ajoutés.")
+        bot.game_event.delete_pseudo(pseudo)
+        await interaction.send(f"Le pseudo **{pseudo}** a été supprimé.")
+
+
+@pseudo.subcommand(name="modifier")
+async def edit_pseudo(
+    interaction: Interaction,
+    pseudo: str = nextcord.SlashOption(
+        name="pseudo",
+        description="Pseudo à supprimer.",
+        required=True,
+        autocomplete_callback=autocomplete_pseudo,
+    ),
+    event: str = nextcord.SlashOption(
+        name="évènement",
+        description="Changer le son associé à cet évènement.",
+        required=True,
+        autocomplete_callback=autocomplete_event,
+    ),
+    sound_name: str = nextcord.SlashOption(
+        name="son",
+        description="Son à choisir.",
+        autocomplete_callback=autocomplete_sound,
+        required=True,
+    ),
+):
+    """Modifie le son associé à un évènement et un pseudo."""
+    
+    if bot.game_event.is_new_pseudo(pseudo):
+        await interaction.send(f"Le pseudo **{pseudo}** n'est pas présent dans la liste des pseudo ajoutés.")
+        return
+    
+    event = bot.game_event.untranslate_event(event.capitalize())
+
+    if not bot.game_event.exists(event):
+        await interaction.send(f"L'évènement **{event}** n'existe pas.")
+        return
+    
+    else:
+        bot.game_event.change_event(pseudo, event, sound_name)
+        await interaction.send(event)
 
 
 @bot.slash_command(name="son")
@@ -284,8 +333,11 @@ async def play_sound(
     ),
 ):
     """Joue le son choisi."""
-    await bot.play_music(interaction, sound_name)
-    await interaction.send(f"Voilà le son **{sound_name}**.")
+    if bot.musics.has_sound(sound_name):
+        await bot.play_music(interaction, sound_name)
+        await interaction.send(f"Voilà le son **{sound_name}**.")
+    else:
+        await interaction.send(f"Le son **{sound_name}** n'existe pas.")
 
 
 @sound.subcommand(name="ajouter")
@@ -301,7 +353,7 @@ async def add_sound(
     filename = attachment.filename
 
     if filename.endswith(bot.musics.ALLOWED_EXTENSION):
-        if filename.split(".")[0] in bot.musics.sound_files:
+        if bot.musics.has_sound(filename):
             await interaction.send(f"Le fichier {filename} est déjà présent.")
 
         else:
@@ -328,8 +380,11 @@ async def delete_sound(
     ),
 ):
     """Supprime un son."""
-    bot.musics.remove(sound_name)
-    await interaction.send(f"Le son **{sound_name}** a été supprimé.")
+    if bot.musics.has_sound(sound_name):
+        bot.musics.remove(sound_name)
+        await interaction.send(f"Le son **{sound_name}** a été supprimé.")
+    else:
+        await interaction.send(f"Le son **{sound_name}** n'est pas présent.")
 
 
 @sound.subcommand(name="liste")
@@ -340,8 +395,8 @@ async def sound_list(interaction: Interaction):
         color=0x00ff00
     )
 
-    names = bot.musics.names()
-    weights = bot.musics.prob()
+    names = bot.musics.sound_info.index
+    weights = bot.musics.get_probabilities()
 
     embed.add_field(name="Nom", value="\n".join(names), inline=True)
     embed.add_field(name="Poids", value="\n".join(weights), inline=True)
@@ -365,14 +420,16 @@ async def change_weight(
     )
 ):
     """Change la probabilité d'apparaître d'un son."""
-    bot.musics.change_weight(sound_name, weight)
-    embed = Embed(
-        title="Changement de poids",
-        description=f"Le poids du son **{sound_name}** est maintenant de **{str(weight).replace(".", ",")}**.",
-        color=0x00ff00
-    )
-
-    await interaction.send(embed=embed)
+    if bot.musics.has_sound(sound_name):
+        bot.musics.change_weight(sound_name, weight)
+        embed = Embed(
+            title="Changement de poids",
+            description=f"Le poids du son **{sound_name}** est maintenant de **{str(weight).replace(".", ",")}**.",
+            color=0x00ff00
+        )
+        await interaction.send(embed=embed)
+    else:
+        await interaction.send(f"Le son **{sound_name}** n'est pas présent.")
 
 
 @bot.event

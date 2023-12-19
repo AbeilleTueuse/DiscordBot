@@ -3,6 +3,7 @@ import os
 import json
 
 from PIL import ImageGrab
+import pandas as pd
 
 from event.detect_boss import BossDetection
 from event.read_message import ReadMessage
@@ -10,11 +11,22 @@ from event.read_message import ReadMessage
 
 class GameEvent:
     SCREEN_WIDTH, SCREEN_HEIGHT = ImageGrab.grab().size
-    EVENT_PATH = os.path.join("event", "event.json")
+    EVENT_GLOBAL_PATH = os.path.join("event", "event_global.json")
+    EVENT_PER_PSEUDO_PATH = os.path.join("event", "event_per_pseudo.txt")
+    DEFAULT_EVENT_SOUND = {
+        "invocation": "random",
+        "death": "il_est_decede"
+        }
+    EVENT_TO_FRENCH = {
+        "invocation": "Invocation",
+        "death": "Mort"
+    }
+    FRENCH_TO_EVENT = {value: key for key, value in EVENT_TO_FRENCH.items()}
 
     def __init__(self):
         self.bbox = self._calc_bbox()
-        self.data = self._open_json()
+        self.event_global = self._get_event_global()
+        self.event_per_pseudo = self._get_event_per_pseudo()
         self.boss_detection = BossDetection()
         self.read_message = ReadMessage()
 
@@ -30,27 +42,49 @@ class GameEvent:
         image = ImageGrab.grab(bbox=self.bbox)
         return np.array(image)
 
-    def _open_json(self) -> list:
-        with open(self.EVENT_PATH, "r") as file:
+    def _get_event_global(self) -> list:
+        with open(self.EVENT_GLOBAL_PATH, "r") as file:
             return json.load(file)
+        
+    def _get_event_per_pseudo(self):
+        return pd.read_csv(self.EVENT_PER_PSEUDO_PATH, header=0, index_col=[0])
 
-    def _save_json(self):
-        with open(self.EVENT_PATH, "w") as file:
-            json.dump(self.data, file, indent=4)
+    def _save_event_global(self):
+        with open(self.EVENT_GLOBAL_PATH, "w") as file:
+            json.dump(self.event_global, file, indent=4)
 
-    def get_event_per_pseudo(self) -> dict:
-        return self.data["per_pseudo"]
+    def _save_event_per_pseudo(self):
+        self.event_per_pseudo.to_csv(self.EVENT_PER_PSEUDO_PATH)
 
-    def pseudo_is_added(self, pseudo: str):
-        return pseudo in self.get_event_per_pseudo()
+    def is_new_pseudo(self, pseudo: str):
+        return pseudo not in self.event_per_pseudo.index
 
     def add_pseudo(self, pseudo: str):
-        self.get_event_per_pseudo()[pseudo] = self._default_pseudo_event()
-        self._save_json()
+        self.event_per_pseudo.loc[pseudo] = self.DEFAULT_EVENT_SOUND
+        self._save_event_per_pseudo()
 
     def delete_pseudo(self, pseudo: str):
-        del self.get_event_per_pseudo()[pseudo]
-        self._save_json()
+        self.event_per_pseudo.drop(pseudo, inplace=True)
+        self._save_event_per_pseudo()
 
-    def _default_pseudo_event(self):
-        return {"invocation": "random", "mort": "il_est_decede"}
+    def translate_event(self, event: str):
+        if event in self.EVENT_TO_FRENCH:
+            return self.EVENT_TO_FRENCH[event]
+        return event
+    
+    def untranslate_event(self, event: str):
+        if event in self.FRENCH_TO_EVENT:
+            return self.FRENCH_TO_EVENT[event]
+        return event
+    
+    def exists(self, event: str):
+        return event in self.event_per_pseudo.columns
+    
+    def change_event(self, pseudo, event: str, sound: str):
+        self.event_per_pseudo.loc[pseudo, event] = sound
+        self._save_event_per_pseudo()
+
+
+if __name__ == "__main__":
+    game_event = GameEvent()
+    print(game_event.display_per_player())

@@ -1,0 +1,4 @@
+pseudo,invocation,death
+Pierrick,random,il_est_decede
+Schwarzy,random,il_est_decede
+Owner,random,il_est_decede
