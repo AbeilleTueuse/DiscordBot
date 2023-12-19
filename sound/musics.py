@@ -44,7 +44,9 @@ class Musics:
         for sound_info in data:
             if sound_info["name"] == sound_name:
                 data.remove(sound_info)
-                os.remove(self.path(sound_name, strict=True))
+                sound_path = self.path(sound_name, strict=True)
+                if os.path.exists(sound_path):
+                    os.remove(sound_path)
                 break
         self._save_json(data)
         self.__init__()

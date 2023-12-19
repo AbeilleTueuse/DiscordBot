@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from event.game_event import GameEvent
 from sound.musics import Musics
+from utils.utils import string_normalisation
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -143,6 +144,16 @@ intents = nextcord.Intents.all()
 bot = MyBot(intents=intents)
 
 
+async def autocomplete_pseudo(interaction: Interaction, user_input: str):
+    current_pseudo = bot.game_event.get_event_per_pseudo().keys()
+    return filter(lambda pseudo : string_normalisation(user_input) in string_normalisation(pseudo), current_pseudo)
+
+
+async def autocomplete_sound(interaction: Interaction, user_input: str):
+    current_sounds = bot.musics.names()
+    return filter(lambda sound : string_normalisation(user_input) in string_normalisation(sound), current_sounds)
+
+
 @bot.slash_command(name="lancer")
 async def start(interaction: Interaction):
     """Joue des sons selon les évènements du jeu."""
@@ -191,6 +202,65 @@ async def restart(interaction: Interaction):
   os.execv(sys.executable, ['python'] + sys.argv)
 
 
+@bot.slash_command(name="évènement")
+async def event(interaction: Interaction):
+    pass
+
+@event.subcommand(name="pseudo")
+async def pseudo(interaction: Interaction):
+    pass
+
+
+@pseudo.subcommand(name="liste")
+async def pseudo_list(interaction: Interaction):
+    """Liste des joueurs ajoutés dans la détection des évènements."""
+    pseudo = list(bot.game_event.get_event_per_pseudo().keys())
+
+    if not pseudo:
+        await interaction.send("Il n'y a encore aucun pseudo ajouté.")
+        return
+
+    embed = Embed(
+        title="Liste des pseudo",
+        color=0x00ff00
+    )
+    embed.add_field(name="Pseudo", value="\n".join(pseudo))
+    await interaction.send(embed=embed)
+
+
+@pseudo.subcommand(name="ajouter")
+async def add_pseudo(
+    interaction: Interaction,
+    pseudo: str = nextcord.SlashOption(
+        name="pseudo",
+        description="Pseudo à ajouter.",
+        required=True,
+)):
+    """Ajoute un nouveau pseudo à la liste des évènements."""
+    if bot.game_event.pseudo_is_added(pseudo):
+        await interaction.send(f"Le pseudo {pseudo} est déjà ajouté.")
+    else:
+        bot.game_event.add_pseudo(pseudo)
+        await interaction.send(f"Le pseudo {pseudo} a été ajouté.")
+
+
+@pseudo.subcommand(name="supprimer")
+async def delete_pseudo(
+    interaction: Interaction,
+    pseudo: str = nextcord.SlashOption(
+        name="pseudo",
+        description="Pseudo à supprimer.",
+        required=True,
+        autocomplete_callback=autocomplete_pseudo
+)):
+    """Supprime un pseudo de la liste des évènements."""
+    if bot.game_event.pseudo_is_added():
+        bot.game_event.delete_pseudo(pseudo)
+        await interaction.send(f"Le pseudo {pseudo} a été supprimé.")
+    else:
+        await interaction.send(f"Le pseudo {pseudo} n'est pas présent dans la liste des pseudo ajoutés.")
+
+
 @bot.slash_command(name="son")
 async def sound(interaction: Interaction):
     pass
@@ -209,7 +279,7 @@ async def play_sound(
     sound_name: str = nextcord.SlashOption(
         name="son",
         description="Nom du son à jouer.",
-        choices=bot.musics.names(),
+        autocomplete_callback=autocomplete_sound,
         required=True,
     ),
 ):
@@ -248,12 +318,12 @@ async def add_sound(
 
 
 @sound.subcommand(name="supprimer")
-async def add_sound(
+async def delete_sound(
     interaction: Interaction,
     sound_name: str = nextcord.SlashOption(
         name="son",
         description="Nom du son à supprimer.",
-        choices=bot.musics.names(),
+        autocomplete_callback=autocomplete_sound,
         required=True,
     ),
 ):
@@ -285,7 +355,7 @@ async def change_weight(
     sound_name: str = nextcord.SlashOption(
         name="son",
         description="Nom du son à modifier.",
-        choices=bot.musics.names(),
+        autocomplete_callback=autocomplete_sound,
         required=True,
     ), 
     weight: float = nextcord.SlashOption(
@@ -321,6 +391,5 @@ async def on_voice_state_update(
             await stop(interaction=None)
             return
         await bot.play_music(voice_state=before)
-
 
 bot.run(TOKEN)

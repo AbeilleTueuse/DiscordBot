@@ -118,10 +118,5 @@
         "name": "yee",
         "extension": "ogg",
         "weight": "1"
-    },
-    {
-        "name": "testtttttttt",
-        "extension": "ogg",
-        "weight": 1
     }
 ]
