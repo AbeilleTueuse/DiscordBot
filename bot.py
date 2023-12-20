@@ -463,7 +463,7 @@ async def sound_list(interaction: Interaction):
 
 @sound.subcommand(name="changer_poids")
 async def change_weight(
-    interaction: nextcord.Interaction,
+    interaction: Interaction,
     sound_name: str = nextcord.SlashOption(
         name="son",
         description="Nom du son à modifier.",
