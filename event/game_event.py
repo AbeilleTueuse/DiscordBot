@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import json
+from typing import Iterable
 
 from PIL import ImageGrab
 import pandas as pd
@@ -15,9 +16,12 @@ class GameEvent:
     EVENT_GLOBAL_PATH = os.path.join("event", "event_global.json")
     EVENT_PER_PSEUDO_PATH = os.path.join("event", "event_per_pseudo.txt")
     DEFAULT_EVENT_SOUND = {
-        "invocation": "random",
+        "invocation": "",
         "death": "il_est_decede",
         }
+    DEFAULT_GLOBAL_EVENT_SOUND = {
+        "fire": "lotr_one_ring",
+    }
     EVENT_TO_FRENCH = {
         "invocation": "Invocation",
         "death": "Mort",
@@ -28,6 +32,7 @@ class GameEvent:
 
     BOSS_REGEX = r"boss_(\d+)"
     BOSS_DISPLAY = "Boss {} %"
+    RANDOM = "aléatoire"
 
     def __init__(self):
         self.bbox = self._calc_bbox()
@@ -79,6 +84,9 @@ class GameEvent:
         
         return event_name
     
+    def translate_events(self, event_names: Iterable):
+        return [self.translate_event(event_name).lower() for event_name in event_names]
+    
     def translate_global_event(self, event_name: str):
         match = re.match(self.BOSS_REGEX, event_name)
         if match:
@@ -94,6 +102,8 @@ class GameEvent:
         return event in self.event_per_pseudo.columns
     
     def change_event(self, pseudo, event: str, sound: str):
+        if not sound:
+            sound = pd.NA
         self.event_per_pseudo.loc[pseudo, event] = sound
         self._save_event_per_pseudo()
 

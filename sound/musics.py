@@ -1,6 +1,4 @@
 import os
-import random as rd
-import json
 import pandas as pd
 
 

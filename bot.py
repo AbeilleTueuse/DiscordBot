@@ -156,6 +156,7 @@ async def autocomplete_event(interaction: Interaction, user_input: str):
 
 async def autocomplete_sound(interaction: Interaction, user_input: str):
     current_sounds = bot.musics.get_names()
+    current_sounds.insert(0, bot.game_event.RANDOM)
     return filter(lambda sound : string_normalisation(user_input) in string_normalisation(sound), current_sounds)
 
 
@@ -231,35 +232,35 @@ async def global_event_list(interaction: Interaction):
         color=0x00ff00
     )
     for event_name, event_info in event_global.items():
+        if not event_info:
+            event_info = bot.game_event.RANDOM
         embed.add_field(name=bot.game_event.translate_global_event(event_name), value=event_info, inline=True)
  
     await interaction.send(embed=embed)
 
 
-# @global_event.subcommand(name="ajouter")
-# async def add_global_event(
-#     interaction: Interaction,
-#     event_name: str = nextcord.SlashOption(
-#         name="pseudo",
-#         description="Pseudo à ajouter.",
-#         required=True,
-#         ),
-#     ):
-#     """Liste des des sons par évènements global."""
-#     event_global = bot.game_event.event_global
-
-#     if not event_global:
-#         await interaction.send("Aucun évènement global n'est ajouté.")
-#         return
-    
-#     embed = Embed(
-#         title="Liste des sons par évènement global.",
-#         color=0x00ff00
-#     )
-#     for event_name, event_info in event_global.items():
-#         embed.add_field(name=bot.game_event.translate_global_event(event_name), value=event_info, inline=True)
+@global_event.subcommand(name="modifier")
+async def change_global_event_sound(
+    interaction: Interaction,
+    event_name: str = nextcord.SlashOption(
+        name="évènemement",
+        description="Évènement global à modifier.",
+        choices=bot.game_event.translate_events(bot.game_event.DEFAULT_GLOBAL_EVENT_SOUND.keys()),
+        required=True,
+        ),
+    new_sound: str = nextcord.SlashOption(
+        name="son",
+        description="Nouveau son à associé à l'évènement.",
+        autocomplete_callback=autocomplete_sound,
+        required=True,
+        ),
+    ):
+    """Modifier le son d'un évènement global."""
+    if not bot.musics.has_sound(new_sound):
+        await interaction.send(f"Le son **{new_sound}** n'a pas été trouvé.")
+        return
  
-#     await interaction.send(embed=embed)
+    await interaction.send("cc")
 
 
 @pseudo.subcommand(name="liste")
@@ -276,8 +277,11 @@ async def pseudo_list(interaction: Interaction):
         color=0x00ff00
     )
     embed.add_field(name="Pseudo", value="\n".join(event_per_pseudo.index), inline=True)
+
+    random_name = bot.game_event.RANDOM
     for event_name in event_per_pseudo.columns:
-        embed.add_field(name=bot.game_event.translate_event(event_name), value="\n".join(event_per_pseudo.loc[:, event_name]), inline=True)
+        event_sounds = "\n".join(event_per_pseudo.loc[:, event_name].fillna(random_name).replace("", random_name))
+        embed.add_field(name=bot.game_event.translate_event(event_name), value=event_sounds, inline=True)
  
     await interaction.send(embed=embed)
 
@@ -345,15 +349,22 @@ async def edit_pseudo(
         await interaction.send(f"Le pseudo **{pseudo}** n'est pas présent dans la liste des pseudo ajoutés.")
         return
     
-    event = bot.game_event.untranslate_event(event.capitalize())
+    event_translated = bot.game_event.untranslate_event(event.capitalize())
 
-    if not bot.game_event.exists(event):
+    if not bot.game_event.exists(event_translated):
         await interaction.send(f"L'évènement **{event}** n'existe pas.")
         return
     
+    if sound_name == bot.game_event.RANDOM:
+        sound_name = ""
+
     else:
-        bot.game_event.change_event(pseudo, event, sound_name)
-        await interaction.send(event)
+        if not bot.musics.has_sound(sound_name):
+            await interaction.send(f"Le son **{sound_name}** n'a pas été trouvé.")
+            return
+    
+    bot.game_event.change_event(pseudo, event_translated, sound_name)
+    await interaction.send(f"Le son associé à l'évènement **{event}** a été modifié pour le pseudo **{pseudo}**.")
 
 
 @bot.slash_command(name="son")
