@@ -157,7 +157,7 @@ async def autocomplete_event(interaction: Interaction, user_input: str):
 async def autocomplete_sound(interaction: Interaction, user_input: str):
     current_sounds = bot.musics.get_names()
     current_sounds.insert(0, bot.game_event.RANDOM)
-    return filter(lambda sound : string_normalisation(user_input) in string_normalisation(sound), current_sounds)
+    return list(filter(lambda sound : string_normalisation(user_input) in string_normalisation(sound), current_sounds))[:25]
 
 
 @bot.slash_command(name="lancer")
