@@ -96,7 +96,7 @@ class MyBot(commands.Bot):
 
         return server_session
 
-    async def play_music(self, interaction: Interaction | None = None, audio_name: str = None, voice_state: nextcord.member.VoiceState | None = None):
+    async def play_music(self, audio_name: str = None, interaction: Interaction | None = None, voice_state: nextcord.member.VoiceState | None = None):
         server_session = await bot.get_session(interaction, voice_state=voice_state)
         
         if server_session is None:
@@ -391,7 +391,7 @@ async def play_sound(
 ):
     """Joue le son choisi."""
     if bot.musics.has_sound(sound_name):
-        await bot.play_music(interaction, sound_name)
+        await bot.play_music(sound_name, interaction=interaction)
         await interaction.send(f"Voilà le son **{sound_name}**.")
     else:
         await interaction.send(f"Le son **{sound_name}** n'existe pas.")
