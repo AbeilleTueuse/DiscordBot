@@ -411,6 +411,9 @@ async def add_sound(
     filename = attachment.filename
 
     if filename.endswith(bot.musics.ALLOWED_EXTENSION):
+        sound_name, extension = filename.split(".")
+        filename = string_normalisation(sound_name, strict=False) + "." + extension
+
         if bot.musics.has_sound(filename):
             await interaction.send(f"Le fichier {filename} est déjà présent.")
 
