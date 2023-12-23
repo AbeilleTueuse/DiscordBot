@@ -18,6 +18,7 @@ class BossDetection:
         self.left_side = None
         self.right_side = None
         self.boss_is_alive = False
+        self.detected_by_message = False
         self.timestamp = time.time()
 
     def detect_boss_bar_side(self, image, side: str):
@@ -98,7 +99,7 @@ class BossDetection:
                     return True
                 
             else:
-                self.boss_is_alive = True
+                self.boss_is_alive = True                
                 return True
             
         else:

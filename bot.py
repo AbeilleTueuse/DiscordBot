@@ -59,8 +59,9 @@ class MyBot(commands.Bot):
                 await bot.play_music("lotr_one_ring")
 
             elif event == "boss_begin":
-                self.game_event.boss_detection.boss_is_alive = True
-                await bot.play_music()
+                if not self.game_event.boss_detection.boss_is_alive:
+                    self.game_event.boss_detection.boss_is_alive = True
+                    await bot.play_music()
 
             else:
                 print(f"Event {event} isn't added.")
